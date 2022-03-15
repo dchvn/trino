@@ -116,14 +116,27 @@ public class MemoryMetadata
             throw new TrinoException(NOT_FOUND, format("Schema [%s] does not exist", schemaName));
         }
 
-        boolean tablesExist = tables.values().stream()
-                .anyMatch(table -> table.getSchemaName().equals(schemaName));
-
-        if (tablesExist) {
+        // DropSchemaTask has the same logic, but needs to check in connector side considering concurrent operations
+        if (!isSchemaEmpty(schemaName)) {
             throw new TrinoException(SCHEMA_NOT_EMPTY, "Schema not empty: " + schemaName);
         }
 
         verify(schemas.remove(schemaName));
+    }
+
+    private boolean isSchemaEmpty(String schemaName)
+    {
+        if (tables.values().stream()
+                .anyMatch(table -> table.getSchemaName().equals(schemaName))) {
+            return false;
+        }
+
+        if (views.keySet().stream()
+                .anyMatch(view -> view.getSchemaName().equals(schemaName))) {
+            return false;
+        }
+
+        return true;
     }
 
     @Override
